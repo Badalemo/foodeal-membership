@@ -23,7 +23,6 @@
       margin-top: 10px;
     }
     
-    /* The Click/Tap Animation */
     button:active { 
       transform: scale(0.95); 
       background: #388e3c; 
@@ -41,7 +40,8 @@
     <input type="tel" id="phone" placeholder="Phone (e.g. 9025550199)">
     
     <div id="newSignupFields" class="hidden">
-       <input type="text" id="name" placeholder="Full Name (To complete registration)">
+       <input type="text" id="name" placeholder="Full Name">
+       <input type="email" id="email" placeholder="Email Address">
     </div>
     
     <button onclick="handleAuth()" id="authBtn">Continue</button>
@@ -63,6 +63,7 @@
     async function handleAuth() {
       const phone = document.getElementById('phone').value.trim();
       const name = document.getElementById('name').value.trim();
+      const email = document.getElementById('email').value.trim();
       const errorMsg = document.getElementById('errorMsg');
       const btn = document.getElementById('authBtn');
 
@@ -99,30 +100,30 @@
          return;
       }
 
-      // 4. NEW USER: Reveal Name Field
+      // 4. NEW USER: Reveal Name & Email Fields
       if (!isNewUser) {
          isNewUser = true;
          document.getElementById('newSignupFields').classList.remove('hidden');
          btn.innerText = "Complete Sign Up";
          btn.disabled = false;
-         errorMsg.innerText = "Phone not found. Please enter your name to register.";
+         errorMsg.innerText = "Phone not found. Please register to continue.";
          errorMsg.style.color = "#ffd700"; 
          return;
       }
 
       // 5. NEW USER: Finalize Registration
-      if (!name) {
-         errorMsg.innerText = "❌ Name is required to create a new account.";
+      if (!name || !email) {
+         errorMsg.innerText = "❌ Name and Email are required.";
          errorMsg.style.color = "#ff4444";
          btn.innerText = "Complete Sign Up";
          btn.disabled = false;
          return;
       }
 
-      // Write new user to database (PIN column is ignored)
+      // Write new user to database (Now includes email)
       const { data: newUser, error: insertError } = await supabaseClient
         .from('members')
-        .insert([{ phone: phone, name: name, points: 0 }])
+        .insert([{ phone: phone, name: name, email: email, points: 0 }])
         .select()
         .single();
 
@@ -138,7 +139,6 @@
       showProfile(newUser);
     }
 
-    // Switches the screen from the Login Form to the Points Dashboard
     function showProfile(userData) {
       document.getElementById('welcomeMsg').innerText = "Hello, " + userData.name;
       document.getElementById('pts').innerText = userData.points;
