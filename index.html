@@ -28,20 +28,18 @@
   </div>
 
   <script>
-    const supabase = supabase.createClient('YOUR_SUPABASE_URL', 'YOUR_SUPABASE_ANON_KEY');
+    const supabase = supabase.createClient('https://biyrentzsvjfhslcneap.supabase.co', 'sb_publishable_1n8pAIefto8v5gzlJHI2DQ_tWGgl5R_');
 
     async function handleLogin() {
       const phone = document.getElementById('phone').value;
       const name = document.getElementById('name').value;
       
-      // 1. Check if user exists in Supabase
       let { data: user, error } = await supabase
         .from('members')
         .select('*')
         .eq('phone', phone)
         .single();
 
-      // 2. If no user, sign them up in Supabase
       if (!user) {
         const { data: newUser, error: signupError } = await supabase
           .from('members')
@@ -51,7 +49,6 @@
         user = newUser;
       }
 
-      // 3. Display user data
       document.getElementById('welcomeMsg').innerText = "Hello, " + user.name;
       document.getElementById('pts').innerText = user.points;
       document.getElementById('authView').classList.add('hidden');
