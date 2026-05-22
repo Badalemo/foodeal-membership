@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Activate foodeal Card</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+      body {
+        font-family: sans-serif;
+        text-align: center;
+        padding: 50px;
+        background: #f4f4f9;
+      }
+      .card {
+        background: white;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        max-width: 400px;
+        margin: auto;
+      }
+      input {
+        padding: 12px;
+        width: 80%;
+        font-size: 16px;
+        margin: 15px 0;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+      }
+      button {
+        background: #000;
+        color: #fff;
+        padding: 12px 24px;
+        font-size: 16px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Welcome to foodeal</h1>
+      <p>Enter your full name to link this card to your new account.</p>
+      <input type="text" id="customerName" placeholder="Your Full Name" />
+      <br />
+      <button onclick="activate()">Activate Membership</button>
+      <div id="status" style="margin-top: 20px; font-weight: bold"></div>
+    </div>
+
+    <script>
+      const supabase = supabase.createClient(
+        "YOUR_SUPABASE_URL",
+        "YOUR_SUPABASE_ANON_KEY",
+      );
+      const cardId = new URLSearchParams(window.location.search).get("id");
+
+      async function activate() {
+        const name = document.getElementById("customerName").value;
+        if (!name) return alert("Please enter a name");
+
+        document.getElementById("status").innerText = "Activating...";
+
+        const { error } = await supabase
+          .from("members")
+          .update({ name: name, is_active: true })
+          .eq("id", cardId);
+
+        if (error) {
+          document.getElementById("status").innerText = "❌ Error activating.";
+          document.getElementById("status").style.color = "red";
+        } else {
+          document.getElementById("status").innerText =
+            "✅ Card Activated! You can close this page.";
+          document.getElementById("status").style.color = "green";
+        }
+      }
+    </script>
+  </body>
+</html>
