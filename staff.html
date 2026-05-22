@@ -16,15 +16,22 @@
 
     body { font-family: sans-serif; background: var(--bg-color); color: var(--text-main); padding: 20px; margin: 0; }
     .container { max-width: 1000px; margin: 0 auto; }
-    .card { background: var(--card-bg); padding: 30px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 20px; }
+    .card { background: var(--card-bg); padding: 30px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 20px; position: relative; }
     
     h1 { color: var(--brand-primary); margin-top: 0; }
     
-    input, select { padding: 12px; font-size: 16px; margin-right: 10px; margin-bottom: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: #222; color: white; outline: none; }
+    input, select { padding: 12px; font-size: 16px; margin-right: 10px; margin-bottom: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: #222; color: white; outline: none; box-sizing: border-box; }
     input:focus, select:focus { border-color: var(--brand-primary); }
     
     button { background: var(--brand-primary); color: black; padding: 12px 20px; font-size: 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
     button:active { background: var(--brand-hover); }
+    
+    .btn-danger { background: #ff4444; color: white; padding: 8px 12px; font-size: 14px; }
+    .btn-danger:active { background: #cc0000; }
+    .btn-success { background: #4caf50; color: white; }
+    .btn-success:active { background: #388e3c; }
+    .btn-secondary { background: #444; color: white; }
+    .btn-secondary:active { background: #222; }
 
     /* Table Styles */
     table { width: 100%; border-collapse: collapse; margin-top: 20px; text-align: left; }
@@ -36,6 +43,18 @@
     .hidden { display: none !important; }
     
     #loginView { text-align: center; max-width: 400px; margin: 100px auto; }
+
+    /* Modal Overlay */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.8); z-index: 99;
+      display: flex; justify-content: center; align-items: center;
+    }
+    .modal-content {
+      background: var(--card-bg); padding: 30px; border-radius: 12px;
+      border: 1px solid var(--brand-primary); width: 100%; max-width: 400px;
+    }
+    .modal-content input, .modal-content select { width: 100%; margin-right: 0; }
   </style>
 </head>
 <body>
@@ -49,9 +68,12 @@
 
   <div class="container hidden" id="dashboardView">
     <div class="card">
-      <h1>foodeal Customer Directory</h1>
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+        <h1>foodeal Customer Directory</h1>
+        <button onclick="openAddModal()" class="btn-success">➕ Add Member</button>
+      </div>
       
-      <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; margin-top: 20px;">
         <input type="text" id="searchInput" placeholder="Search Name or Phone..." oninput="filterTable()" style="flex: 1; min-width: 200px;">
         <select id="sortSelect" onchange="loadMembers()">
           <option value="created_at">Newest First</option>
@@ -70,6 +92,7 @@
               <th>Points</th>
               <th>Tier</th>
               <th>Joined Date</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody id="memberTableBody">
@@ -79,10 +102,33 @@
     </div>
   </div>
 
+  <div id="addModal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <h2 style="color: var(--brand-primary); margin-top: 0;">Add New Member</h2>
+      <input type="text" id="newName" placeholder="Full Name">
+      <input type="tel" id="newPhone" placeholder="Phone Number (Digits only)" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+      <input type="email" id="newEmail" placeholder="Email Address">
+      
+      <select id="newTier">
+        <option value="Standard">Standard (Default)</option>
+        <option value="Silver">Silver</option>
+        <option value="Gold">Gold</option>
+        <option value="VIP">VIP</option>
+      </select>
+
+      <div style="display: flex; gap: 10px; margin-top: 20px;">
+        <button onclick="saveNewMember()" style="flex: 1;">Save Member</button>
+        <button onclick="closeAddModal()" class="btn-secondary" style="flex: 1;">Cancel</button>
+      </div>
+      <p id="addError" style="color: #ff4444; margin-top: 10px; font-weight: bold;"></p>
+    </div>
+  </div>
+
   <script>
     const supabaseClient = supabase.createClient('https://biyrentzsvjfhslcneap.supabase.co', 'sb_publishable_1n8pAIefto8v5gzlJHI2DQ_tWGgl5R_');
     let allMembers = [];
 
+    // --- SECURITY & LOAD ---
     function checkPin() {
       const pin = document.getElementById('staffPin').value;
       if (pin === "2026") { 
@@ -113,16 +159,14 @@
       renderTable(allMembers);
     }
 
+    // --- RENDER & FILTER ---
     function renderTable(dataArray) {
       const tbody = document.getElementById('memberTableBody');
       tbody.innerHTML = "";
 
       dataArray.forEach(member => {
         const dateStr = new Date(member.created_at).toLocaleDateString();
-        
-        // Build the Tier Dropdown
         const tiers = ['Standard', 'Silver', 'Gold', 'VIP'];
-        // Default to Standard if the tier column is empty
         const currentTier = member.tier || 'Standard'; 
         
         let optionsHtml = tiers.map(t => 
@@ -140,6 +184,9 @@
             </select>
           </td>
           <td style="color: #888;">${dateStr}</td>
+          <td>
+            <button onclick="deleteMember('${member.id}', '${member.name}')" class="btn-danger">Delete</button>
+          </td>
         `;
         tbody.appendChild(tr);
       });
@@ -154,16 +201,88 @@
       renderTable(filtered);
     }
 
+    // --- DATABASE ACTIONS ---
     async function updateTier(userId, newTier) {
       const { error } = await supabaseClient
         .from('members')
-        // Updated to use the 'tier' column
         .update({ tier: newTier }) 
         .eq('id', userId);
 
       if (error) {
         alert("Failed to update tier: " + error.message);
         loadMembers(); 
+      }
+    }
+
+    async function deleteMember(userId, userName) {
+      // Ask for confirmation before deleting
+      const isConfirmed = confirm(`Are you sure you want to permanently delete ${userName || 'this user'}? This action cannot be undone.`);
+      
+      if (isConfirmed) {
+        const { error } = await supabaseClient
+          .from('members')
+          .delete()
+          .eq('id', userId);
+
+        if (error) {
+          alert("Failed to delete member: " + error.message);
+        } else {
+          loadMembers(); // Refresh table
+        }
+      }
+    }
+
+    // --- ADD MEMBER MODAL LOGIC ---
+    function openAddModal() {
+      document.getElementById('addModal').classList.remove('hidden');
+      document.getElementById('addError').innerText = "";
+    }
+
+    function closeAddModal() {
+      document.getElementById('addModal').classList.add('hidden');
+      // Clear inputs when closing
+      document.getElementById('newName').value = "";
+      document.getElementById('newPhone').value = "";
+      document.getElementById('newEmail').value = "";
+      document.getElementById('newTier').value = "Standard";
+    }
+
+    async function saveNewMember() {
+      const name = document.getElementById('newName').value.trim();
+      const phone = document.getElementById('newPhone').value.trim();
+      const email = document.getElementById('newEmail').value.trim();
+      const tier = document.getElementById('newTier').value;
+      const errorText = document.getElementById('addError');
+
+      errorText.innerText = "";
+
+      // Basic Validation
+      if (!phone || phone.length < 10) {
+        errorText.innerText = "A valid phone number (at least 10 digits) is required.";
+        return;
+      }
+      if (!name) {
+        errorText.innerText = "Name is required.";
+        return;
+      }
+
+      // Check if phone already exists
+      const { data: existing } = await supabaseClient.from('members').select('id').eq('phone', phone).maybeSingle();
+      if (existing) {
+        errorText.innerText = "A member with this phone number already exists.";
+        return;
+      }
+
+      // Insert new member
+      const { error } = await supabaseClient
+        .from('members')
+        .insert([{ phone: phone, name: name, email: email, tier: tier, points: 0 }]);
+
+      if (error) {
+        errorText.innerText = "Error saving member: " + error.message;
+      } else {
+        closeAddModal();
+        loadMembers(); // Refresh the table so they appear instantly
       }
     }
   </script>
