@@ -39,10 +39,8 @@
     
     <input type="tel" id="phone" placeholder="Phone (e.g. 9025550199)">
     
-    <div id="newSignupFields" class="hidden">
-       <input type="text" id="name" placeholder="Full Name">
-       <input type="email" id="email" placeholder="Email Address">
-    </div>
+    <input type="text" id="name" class="hidden" placeholder="Full Name">
+    <input type="email" id="email" class="hidden" placeholder="Email Address">
     
     <button onclick="handleAuth()" id="authBtn">Continue</button>
     <div id="errorMsg" class="error"></div>
@@ -59,6 +57,7 @@
     const supabaseClient = supabase.createClient('https://biyrentzsvjfhslcneap.supabase.co', 'sb_publishable_1n8pAIefto8v5gzlJHI2DQ_tWGgl5R_');
 
     let isNewUser = false;
+    let isUpdatingEmail = false;
 
     async function handleAuth() {
       const phone = document.getElementById('phone').value.trim();
@@ -69,7 +68,6 @@
 
       errorMsg.innerText = "";
 
-      // 1. Validate Phone is entered
       if (!phone) {
         errorMsg.innerText = "❌ Phone number is required.";
         errorMsg.style.color = "#ff4444";
@@ -78,8 +76,63 @@
 
       btn.innerText = "Checking...";
       btn.disabled = true;
+
+      // --- STATE: RETURNING USER UPDATING EMAIL ---
+      if (isUpdatingEmail) {
+         if (!email) {
+            errorMsg.innerText = "❌ Email is required to continue.";
+            errorMsg.style.color = "#ff4444";
+            btn.innerText = "Save Email";
+            btn.disabled = false;
+            return;
+         }
+         
+         const { data: updatedUser, error: updateError } = await supabaseClient
+            .from('members')
+            .update({ email: email })
+            .eq('phone', phone)
+            .select()
+            .single();
+            
+         if (updateError) {
+            errorMsg.innerText = "❌ Update failed: " + updateError.message;
+            errorMsg.style.color = "#ff4444";
+            btn.innerText = "Save Email";
+            btn.disabled = false;
+            return;
+         }
+         showProfile(updatedUser);
+         return;
+      }
+
+      // --- STATE: NEW USER FINISHING REGISTRATION ---
+      if (isNewUser) {
+         if (!name || !email) {
+            errorMsg.innerText = "❌ Name and Email are required.";
+            errorMsg.style.color = "#ff4444";
+            btn.innerText = "Complete Sign Up";
+            btn.disabled = false;
+            return;
+         }
+
+         const { data: newUser, error: insertError } = await supabaseClient
+            .from('members')
+            .insert([{ phone: phone, name: name, email: email, points: 0 }])
+            .select()
+            .single();
+
+         if (insertError) {
+            errorMsg.innerText = "❌ Registration failed: " + insertError.message;
+            errorMsg.style.color = "#ff4444";
+            btn.innerText = "Complete Sign Up";
+            btn.disabled = false;
+            return;
+         }
+         showProfile(newUser);
+         return;
+      }
       
-      // 2. Search Database for Phone Number
+      // --- INITIAL SEARCH: WHO IS THIS USER? ---
       let { data: user, error: searchError } = await supabaseClient
         .from('members')
         .select('*')
@@ -94,49 +147,31 @@
          return;
       }
 
-      // 3. RETURNING USER: Log in instantly
+      // Found User
       if (user) {
+         // Check if they are missing their email
+         if (!user.email) {
+            isUpdatingEmail = true;
+            document.getElementById('email').classList.remove('hidden');
+            btn.innerText = "Save Email";
+            btn.disabled = false;
+            errorMsg.innerText = "Please add an email address to secure your account.";
+            errorMsg.style.color = "#ffd700";
+            return;
+         }
+         // Has everything, log them in instantly
          showProfile(user);
          return;
       }
 
-      // 4. NEW USER: Reveal Name & Email Fields
-      if (!isNewUser) {
-         isNewUser = true;
-         document.getElementById('newSignupFields').classList.remove('hidden');
-         btn.innerText = "Complete Sign Up";
-         btn.disabled = false;
-         errorMsg.innerText = "Phone not found. Please register to continue.";
-         errorMsg.style.color = "#ffd700"; 
-         return;
-      }
-
-      // 5. NEW USER: Finalize Registration
-      if (!name || !email) {
-         errorMsg.innerText = "❌ Name and Email are required.";
-         errorMsg.style.color = "#ff4444";
-         btn.innerText = "Complete Sign Up";
-         btn.disabled = false;
-         return;
-      }
-
-      // Write new user to database (Now includes email)
-      const { data: newUser, error: insertError } = await supabaseClient
-        .from('members')
-        .insert([{ phone: phone, name: name, email: email, points: 0 }])
-        .select()
-        .single();
-
-      if (insertError) {
-         errorMsg.innerText = "❌ Registration failed: " + insertError.message;
-         errorMsg.style.color = "#ff4444";
-         btn.innerText = "Complete Sign Up";
-         btn.disabled = false;
-         return;
-      }
-
-      // Registration Success
-      showProfile(newUser);
+      // Not Found -> Brand New User
+      isNewUser = true;
+      document.getElementById('name').classList.remove('hidden');
+      document.getElementById('email').classList.remove('hidden');
+      btn.innerText = "Complete Sign Up";
+      btn.disabled = false;
+      errorMsg.innerText = "Phone not found. Please register to continue.";
+      errorMsg.style.color = "#ffd700"; 
     }
 
     function showProfile(userData) {
