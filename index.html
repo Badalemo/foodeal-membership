@@ -37,7 +37,7 @@
   <div class="card" id="authView">
     <h1>Welcome to foodeal</h1>
     
-    <input type="tel" id="phone" placeholder="Phone (e.g. 9025550199)">
+    <input type="tel" id="phone" placeholder="Phone (e.g. 9025550199)" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
     
     <input type="text" id="name" class="hidden" placeholder="Full Name">
     <input type="email" id="email" class="hidden" placeholder="Email Address">
@@ -60,7 +60,7 @@
     let isUpdatingEmail = false;
 
     async function handleAuth() {
-      const phone = document.getElementById('phone').value.trim();
+      const rawPhone = document.getElementById('phone').value.trim();
       const name = document.getElementById('name').value.trim();
       const email = document.getElementById('email').value.trim();
       const errorMsg = document.getElementById('errorMsg');
@@ -68,19 +68,26 @@
 
       errorMsg.innerText = "";
 
-      if (!phone) {
+      if (!rawPhone) {
         errorMsg.innerText = "❌ Phone number is required.";
         errorMsg.style.color = "#ff4444";
         return;
       }
 
+      const phone = rawPhone.replace(/[^0-9]/g, '');
+
+      if (phone.length < 10) {
+         errorMsg.innerText = "❌ Phone number must be at least 10 digits.";
+         errorMsg.style.color = "#ff4444";
+         return;
+      }
+
       btn.innerText = "Checking...";
       btn.disabled = true;
 
-      // --- STATE: RETURNING USER UPDATING EMAIL ---
       if (isUpdatingEmail) {
-         if (!email) {
-            errorMsg.innerText = "❌ Email is required to continue.";
+         if (!email || !email.includes('@')) {
+            errorMsg.innerText = "❌ A valid email is required to continue.";
             errorMsg.style.color = "#ff4444";
             btn.innerText = "Save Email";
             btn.disabled = false;
@@ -105,10 +112,9 @@
          return;
       }
 
-      // --- STATE: NEW USER FINISHING REGISTRATION ---
       if (isNewUser) {
-         if (!name || !email) {
-            errorMsg.innerText = "❌ Name and Email are required.";
+         if (!name || !email || !email.includes('@')) {
+            errorMsg.innerText = "❌ Name and a valid Email are required.";
             errorMsg.style.color = "#ff4444";
             btn.innerText = "Complete Sign Up";
             btn.disabled = false;
@@ -132,7 +138,6 @@
          return;
       }
       
-      // --- INITIAL SEARCH: WHO IS THIS USER? ---
       let { data: user, error: searchError } = await supabaseClient
         .from('members')
         .select('*')
@@ -147,9 +152,7 @@
          return;
       }
 
-      // Found User
       if (user) {
-         // Check if they are missing their email
          if (!user.email) {
             isUpdatingEmail = true;
             document.getElementById('email').classList.remove('hidden');
@@ -159,12 +162,10 @@
             errorMsg.style.color = "#ffd700";
             return;
          }
-         // Has everything, log them in instantly
          showProfile(user);
          return;
       }
 
-      // Not Found -> Brand New User
       isNewUser = true;
       document.getElementById('name').classList.remove('hidden');
       document.getElementById('email').classList.remove('hidden');
