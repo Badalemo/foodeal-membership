@@ -1,9 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>My foodeal Card</title>
+  <title>My foodeal Points</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     body { 
       font-family: sans-serif; 
@@ -32,13 +31,7 @@
       margin-bottom: 15px; 
     }
     h1 { margin: 0 0 5px 0; font-size: 24px; }
-    .points { font-size: 18px; color: #aaa; margin-bottom: 25px; }
-    #qrcode { 
-      background: white; 
-      padding: 15px; 
-      border-radius: 10px; 
-      display: inline-block; 
-    }
+    .points { font-size: 32px; font-weight: bold; color: #4caf50; margin-top: 15px; }
   </style>
 </head>
 <body>
@@ -48,8 +41,7 @@
     <h1 id="nameDisplay">Name</h1>
     <div class="points" id="pointsDisplay">0 Points</div>
     
-    <div id="qrcode"></div>
-    <p style="margin-top: 20px; font-size: 14px; color: #777;">Scan at counter</p>
+    <p style="margin-top: 25px; font-size: 14px; color: #ff4444; font-weight: bold;">⚠️ Physical NFC Card Required In-Store</p>
   </div>
 
   <div id="errorMsg" style="color: #ff4444; margin-top: 50px; font-weight: bold;"></div>
@@ -79,12 +71,6 @@
       document.getElementById('tierDisplay').innerText = data.tier;
       document.getElementById('nameDisplay').innerText = data.name;
       document.getElementById('pointsDisplay').innerText = data.points + " Points";
-      
-      new QRCode(document.getElementById("qrcode"), {
-        text: data.id,
-        width: 200,
-        height: 200
-      });
 
       document.getElementById('memberCard').style.display = "block";
     }
