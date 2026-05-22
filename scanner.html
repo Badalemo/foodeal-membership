@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+  <head>
+    <title>foodeal Scanner</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <style>
+      body {
+        font-family: sans-serif;
+        text-align: center;
+        padding: 20px;
+      }
+      #reader {
+        width: 500px;
+        margin: 0 auto;
+      }
+      #result {
+        margin-top: 20px;
+        font-size: 24px;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>foodeal Check-in Scanner</h1>
+    <div id="reader"></div>
+    <div id="result">Waiting for scan...</div>
+
+    <script>
+      const SUPABASE_URL = "https://biyrentzsvjfhslcneap.supabase.co/rest/v1/";
+      const SUPABASE_KEY = "sb_publishable_1n8pAIefto8v5gzlJHI2DQ_tWGgl5R_";
+      const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      async function checkMember(id) {
+        document.getElementById("result").innerText = "Checking...";
+
+        const { data, error } = await supabase
+          .from("members")
+          .select("name, is_active")
+          .eq("id", id)
+          .single();
+
+        if (error || !data) {
+          document.getElementById("result").innerText = "❌ Invalid QR Code";
+          document.getElementById("result").style.color = "red";
+        } else if (data.is_active) {
+          document.getElementById("result").innerText =
+            `✅ Valid Member: ${data.name}`;
+          document.getElementById("result").style.color = "green";
+        } else {
+          document.getElementById("result").innerText =
+            `⚠️ Inactive Member: ${data.name}`;
+          document.getElementById("result").style.color = "orange";
+        }
+
+        setTimeout(() => {
+          document.getElementById("result").innerText = "Waiting for scan...";
+          document.getElementById("result").style.color = "black";
+        }, 4000);
+      }
+
+      function onScanSuccess(decodedText) {
+        checkMember(decodedText);
+      }
+
+      const html5QrcodeScanner = new Html5QrcodeScanner("reader", {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+      });
+      html5QrcodeScanner.render(onScanSuccess);
+    </script>
+  </body>
+</html>
