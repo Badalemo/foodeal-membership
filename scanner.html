@@ -1,238 +1,204 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
-  <head>
-    <title>foodeal Staff Terminal</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-      body {
-        font-family: sans-serif;
-        text-align: center;
-        background: #eceff1;
-        margin: 0;
-        padding: 20px;
-      }
-      .container {
-        background: white;
-        max-width: 500px;
-        margin: auto;
-        padding: 20px;
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      }
-      #nfcInput {
-        opacity: 0;
-        position: absolute;
-        z-index: -1;
-      } /* Hidden target for NFC taps */
-      .hidden {
-        display: none;
-      }
-      button {
-        background: #28a745;
-        color: white;
-        padding: 15px 20px;
-        font-size: 18px;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        width: 100%;
-        margin-top: 15px;
-      }
-      .points {
-        font-size: 24px;
-        font-weight: bold;
-        color: #007bff;
-      }
-      .tier {
-        display: inline-block;
-        padding: 5px 10px;
-        background: #ffd700;
-        border-radius: 15px;
-        font-size: 14px;
-        font-weight: bold;
-        margin-bottom: 10px;
-      }
-      #passcodeArea {
-        margin-top: 15px;
-        background: #fff3cd;
-        padding: 15px;
-        border-radius: 8px;
-      }
-      #passcodeInput {
-        padding: 10px;
-        font-size: 16px;
-        width: 60%;
-      }
-    </style>
-  </head>
-  <body>
-    <input type="text" id="nfcInput" autofocus autocomplete="off" />
+<head>
+  <title>foodeal Staff Terminal</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    body { font-family: sans-serif; text-align: center; background: #eceff1; margin: 0; padding: 20px; }
+    .container { background: white; max-width: 500px; margin: auto; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .hidden { display: none !important; }
+    button { background: #28a745; color: white; padding: 15px 20px; font-size: 16px; border: none; border-radius: 8px; cursor: pointer; width: 100%; margin-top: 10px; font-weight: bold;}
+    .btn-nfc { background: #007bff; }
+    .btn-cam { background: #333; }
+    .points { font-size: 24px; font-weight: bold; color: #007bff; }
+    .tier { display: inline-block; padding: 5px 10px; background: #ffd700; border-radius: 15px; font-size: 14px; font-weight: bold; margin-bottom: 10px;}
+    #passcodeArea { margin-top: 15px; background: #fff3cd; padding: 15px; border-radius: 8px; }
+    #passcodeInput { padding: 10px; font-size: 16px; width: 60%; }
+    #reader { width: 100%; margin-top: 15px; }
+  </style>
+</head>
+<body>
 
-    <div class="container">
-      <h2>foodeal Staff Scanner</h2>
-      <p style="color: gray; font-size: 14px">Tap NFC card or use camera</p>
-
-      <div id="resultArea">
-        <h3 id="statusText">Waiting for card tap...</h3>
-      </div>
-
-      <div id="memberProfile" class="hidden">
-        <hr />
-        <div class="tier" id="mTier">VIP</div>
-        <h2 id="mName" style="margin: 5px 0">Customer Name</h2>
-        <p>Points: <span class="points" id="mPoints">0</span></p>
-
-        <div id="passcodeArea" class="hidden">
-          <p style="color: #856404; margin-top: 0; font-size: 14px">
-            📍 Not at store. Passcode required.
-          </p>
-          <input
-            type="password"
-            id="passcodeInput"
-            placeholder="Staff Passcode"
-          />
-          <button
-            onclick="checkPasscode()"
-            style="width: auto; padding: 10px; background: #333"
-          >
-            Unlock
-          </button>
-        </div>
-
-        <div id="staffActions" class="hidden">
-          <button onclick="addPoints(10)">
-            🍔 Add Food Order (+10 Points)
-          </button>
-        </div>
-      </div>
+  <div class="container">
+    <h2>foodeal Staff Terminal</h2>
+    
+    <div id="controls">
+      <button class="btn-nfc" id="nfcButton" onclick="startNFC()">📱 Tap NFC Card (Android Only)</button>
+      <button class="btn-cam" onclick="startCamera()">📷 Scan QR Code</button>
     </div>
 
-    <script>
-      const supabase = supabase.createClient(
-        "https://biyrentzsvjfhslcneap.supabase.co/rest/v1/",
-        "sb_publishable_1n8pAIefto8v5gzlJHI2DQ_tWGgl5R_",
-      );
+    <div id="reader" class="hidden"></div>
+    
+    <div id="resultArea" style="margin-top: 20px;">
+      <h3 id="statusText">Awaiting scan...</h3>
+    </div>
 
-      // Store Location Coordinates
-      const STORE_LAT = 44.6488;
-      const STORE_LON = -63.5752;
+    <div id="memberProfile" class="hidden">
+      <hr>
+      <div class="tier" id="mTier">VIP</div>
+      <h2 id="mName" style="margin: 5px 0;">Customer Name</h2>
+      <p>Points: <span class="points" id="mPoints">0</span></p>
 
-      let currentMemberId = null;
-      let currentPoints = 0;
-      let isVerified = false;
+      <div id="passcodeArea" class="hidden">
+        <p style="color: #856404; margin-top: 0; font-size: 14px;">📍 Not at store. Passcode required.</p>
+        <input type="password" id="passcodeInput" placeholder="Staff Passcode">
+        <button onclick="checkPasscode()" style="width: auto; padding: 10px; background: #333;">Unlock</button>
+      </div>
 
-      // --- 1. NFC Tap Listener ---
-      document
-        .getElementById("nfcInput")
-        .addEventListener("keypress", function (e) {
-          if (e.key === "Enter") {
-            const uuid = e.target.value;
-            e.target.value = ""; // Clear for next tap
-            loadMember(uuid);
+      <div id="staffActions" class="hidden">
+        <button onclick="addPoints(10)">🍔 Add Food Order (+10 Points)</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const supabase = supabase.createClient('https://biyrentzsvjfhslcneap.supabase.co/rest/v1/', 'sb_publishable_1n8pAIefto8v5gzlJHI2DQ_tWGgl5R_');
+    
+    // Store Location Coordinates (Update to exact store coords)
+    const STORE_LAT = 44.6488; 
+    const STORE_LON = -63.5752;
+    
+    let currentMemberId = null;
+    let currentPoints = 0;
+    let isVerified = false;
+    let html5QrcodeScanner;
+
+    // --- 1. Check if NFC is supported ---
+    if (!("NDEFReader" in window)) {
+      document.getElementById('nfcButton').classList.add('hidden');
+    }
+
+    // --- 2. Start NFC Reader (Android) ---
+    async function startNFC() {
+      try {
+        const ndef = new NDEFReader();
+        await ndef.scan();
+        document.getElementById('statusText').innerText = "Ready to tap NFC card...";
+        
+        ndef.addEventListener("reading", ({ message }) => {
+          // Extract text payload from NFC chip
+          const textDecoder = new TextDecoder();
+          for (const record of message.records) {
+            if (record.recordType === "text") {
+              const uuid = textDecoder.decode(record.data);
+              loadMember(uuid);
+              return;
+            }
           }
         });
+      } catch (error) {
+        alert("NFC Error: Make sure NFC is turned on in your phone settings.");
+      }
+    }
 
-      // Keep NFC input focused so it always catches taps
-      document.addEventListener("click", () =>
-        document.getElementById("nfcInput").focus(),
+    // --- 3. Start Camera Scanner ---
+    function startCamera() {
+      document.getElementById('reader').classList.remove('hidden');
+      document.getElementById('statusText').innerText = "Starting camera...";
+      
+      html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
+      html5QrcodeScanner.render(
+        (decodedText) => {
+          // When QR is found, stop camera and load member
+          html5QrcodeScanner.clear();
+          document.getElementById('reader').classList.add('hidden');
+          
+          // If the QR is the full URL, extract just the ID. Otherwise, use the raw text.
+          let idToUse = decodedText;
+          if(decodedText.includes('?id=')) {
+            idToUse = decodedText.split('?id=')[1];
+          }
+          
+          loadMember(idToUse);
+        },
+        (errorMessage) => { /* Ignore background scan errors */ }
       );
+    }
 
-      // --- 2. Database Fetch ---
-      async function loadMember(id) {
-        document.getElementById("statusText").innerText = "Loading...";
-        document.getElementById("statusText").style.color = "black";
-        document.getElementById("memberProfile").classList.add("hidden");
+    // --- 4. Database Fetch ---
+    async function loadMember(id) {
+      document.getElementById('statusText').innerText = "Loading...";
+      document.getElementById('statusText').style.color = "black";
+      document.getElementById('memberProfile').classList.add('hidden');
 
-        const { data, error } = await supabase
-          .from("members")
-          .select("*")
-          .eq("id", id)
-          .single();
+      const { data, error } = await supabase.from('members').select('*').eq('id', id).single();
 
-        if (error || !data || !data.is_active) {
-          document.getElementById("statusText").innerText =
-            "❌ Invalid or Unactivated Card";
-          document.getElementById("statusText").style.color = "red";
-          return;
-        }
-
-        // Populate UI
-        currentMemberId = id;
-        currentPoints = data.points;
-        document.getElementById("statusText").innerText = "✅ Card Accepted";
-        document.getElementById("statusText").style.color = "green";
-        document.getElementById("mName").innerText = data.name;
-        document.getElementById("mTier").innerText = data.tier;
-        document.getElementById("mPoints").innerText = currentPoints;
-
-        document.getElementById("memberProfile").classList.remove("hidden");
-
-        // Check Security
-        if (!isVerified) verifyLocation();
+      if (error || !data || !data.is_active) {
+        document.getElementById('statusText').innerText = "❌ Invalid or Unactivated Card";
+        document.getElementById('statusText').style.color = "red";
+        return;
       }
 
-      // --- 3. Location Security ---
-      function verifyLocation() {
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(
-            (pos) => {
-              const latDiff = Math.abs(pos.coords.latitude - STORE_LAT);
-              const lonDiff = Math.abs(pos.coords.longitude - STORE_LON);
-              // If within roughly ~200 meters of the coordinates
-              if (latDiff < 0.002 && lonDiff < 0.002) {
-                unlockTerminal();
-              } else {
-                requestPasscode();
-              }
-            },
-            (err) => requestPasscode(), // If GPS is off/fails
-          );
-        } else {
-          requestPasscode();
-        }
+      currentMemberId = id;
+      currentPoints = data.points;
+      document.getElementById('statusText').innerText = "✅ Card Accepted";
+      document.getElementById('statusText').style.color = "green";
+      document.getElementById('mName').innerText = data.name;
+      document.getElementById('mTier').innerText = data.tier;
+      document.getElementById('mPoints').innerText = currentPoints;
+      
+      document.getElementById('memberProfile').classList.remove('hidden');
+      if (!isVerified) verifyLocation();
+    }
+
+    // --- 5. Location & Passcode Security ---
+    function verifyLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const latDiff = Math.abs(pos.coords.latitude - STORE_LAT);
+            const lonDiff = Math.abs(pos.coords.longitude - STORE_LON);
+            if (latDiff < 0.002 && lonDiff < 0.002) {
+              unlockTerminal();
+            } else {
+              requestPasscode();
+            }
+          },
+          (err) => requestPasscode()
+        );
+      } else {
+        requestPasscode();
       }
+    }
 
-      function requestPasscode() {
-        document.getElementById("passcodeArea").classList.remove("hidden");
-        document.getElementById("staffActions").classList.add("hidden");
+    function requestPasscode() {
+      document.getElementById('passcodeArea').classList.remove('hidden');
+      document.getElementById('staffActions').classList.add('hidden');
+    }
+
+    function checkPasscode() {
+      if (document.getElementById('passcodeInput').value === 'foodeal1') {
+        document.getElementById('passcodeInput').value = '';
+        unlockTerminal();
+      } else {
+        alert("Incorrect passcode");
       }
+    }
 
-      function checkPasscode() {
-        if (document.getElementById("passcodeInput").value === "foodeal1") {
-          document.getElementById("passcodeInput").value = "";
-          unlockTerminal();
-        } else {
-          alert("Incorrect passcode");
-        }
+    function unlockTerminal() {
+      isVerified = true;
+      document.getElementById('passcodeArea').classList.add('hidden');
+      document.getElementById('staffActions').classList.remove('hidden');
+    }
+
+    // --- 6. Add Points ---
+    async function addPoints(amount) {
+      const newTotal = currentPoints + amount;
+      const { error } = await supabase.from('members').update({ points: newTotal }).eq('id', currentMemberId);
+
+      if (!error) {
+        currentPoints = newTotal;
+        document.getElementById('mPoints').innerText = currentPoints;
+        const btn = document.querySelector('#staffActions button');
+        btn.innerText = "✅ Points Added!";
+        btn.style.background = "gray";
+        setTimeout(() => {
+          btn.innerText = "🍔 Add Food Order (+10 Points)";
+          btn.style.background = "#28a745";
+        }, 2000);
       }
-
-      function unlockTerminal() {
-        isVerified = true;
-        document.getElementById("passcodeArea").classList.add("hidden");
-        document.getElementById("staffActions").classList.remove("hidden");
-      }
-
-      // --- 4. Add Points ---
-      async function addPoints(amount) {
-        const newTotal = currentPoints + amount;
-        const { error } = await supabase
-          .from("members")
-          .update({ points: newTotal })
-          .eq("id", currentMemberId);
-
-        if (!error) {
-          currentPoints = newTotal;
-          document.getElementById("mPoints").innerText = currentPoints;
-
-          const btn = document.querySelector("#staffActions button");
-          btn.innerText = "✅ Points Added!";
-          btn.style.background = "gray";
-          setTimeout(() => {
-            btn.innerText = "🍔 Add Food Order (+10 Points)";
-            btn.style.background = "#28a745";
-          }, 2000);
-        }
-      }
-    </script>
-  </body>
+    }
+  </script>
+</body>
 </html>
