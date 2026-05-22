@@ -55,9 +55,8 @@
   <div id="errorMsg" style="color: #ff4444; margin-top: 50px; font-weight: bold;"></div>
 
   <script>
-    const supabase = supabase.createClient('https://biyrentzsvjfhslcneap.supabase.co/rest/v1/', 'sb_publishable_1n8pAIefto8v5gzlJHI2DQ_tWGgl5R_');
+    const supabaseClient = supabase.createClient('https://biyrentzsvjfhslcneap.supabase.co', 'sb_publishable_1n8pAIefto8v5gzlJHI2DQ_tWGgl5R_');
     
-    // Grab the ID from the URL link
     const cardId = new URLSearchParams(window.location.search).get('id');
 
     async function loadCard() {
@@ -66,8 +65,7 @@
         return;
       }
 
-      // Fetch member data
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('members')
         .select('*')
         .eq('id', cardId)
@@ -78,19 +76,16 @@
         return;
       }
 
-      // Populate the digital card UI
       document.getElementById('tierDisplay').innerText = data.tier;
       document.getElementById('nameDisplay').innerText = data.name;
       document.getElementById('pointsDisplay').innerText = data.points + " Points";
       
-      // Generate QR Code containing just the ID for the scanner.html to read
       new QRCode(document.getElementById("qrcode"), {
         text: data.id,
         width: 200,
         height: 200
       });
 
-      // Show the card
       document.getElementById('memberCard').style.display = "block";
     }
 
