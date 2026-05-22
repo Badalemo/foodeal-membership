@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>foodeal Staff Portal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --brand-primary: #FFD700;
+      --brand-hover: #E6C200;
+      --bg-color: #000000;
+      --card-bg: #141414;
+      --text-main: #ffffff;
+      --border-color: #333333;
+    }
+
+    body { font-family: sans-serif; background: var(--bg-color); color: var(--text-main); padding: 20px; margin: 0; }
+    .container { max-width: 1000px; margin: 0 auto; }
+    .card { background: var(--card-bg); padding: 30px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 20px; }
+    
+    h1 { color: var(--brand-primary); margin-top: 0; }
+    
+    input, select { padding: 12px; font-size: 16px; margin-right: 10px; margin-bottom: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: #222; color: white; outline: none; }
+    input:focus, select:focus { border-color: var(--brand-primary); }
+    
+    button { background: var(--brand-primary); color: black; padding: 12px 20px; font-size: 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+    button:active { background: var(--brand-hover); }
+
+    /* Table Styles */
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; text-align: left; }
+    th, td { padding: 15px; border-bottom: 1px solid var(--border-color); }
+    th { color: var(--brand-primary); font-weight: bold; }
+    
+    .tier-select { background: #000; border: 1px solid var(--brand-primary); color: var(--brand-primary); font-weight: bold; cursor: pointer; padding: 8px; border-radius: 4px; }
+    
+    .hidden { display: none !important; }
+    
+    #loginView { text-align: center; max-width: 400px; margin: 100px auto; }
+  </style>
+</head>
+<body>
+
+  <div class="card" id="loginView">
+    <h1>Staff Access</h1>
+    <input type="password" id="staffPin" placeholder="Enter Staff PIN" style="width: 100%;">
+    <button onclick="checkPin()" style="width: 100%;">Unlock Dashboard</button>
+    <p id="pinError" style="color: #ff4444; display: none; margin-top: 10px;">Incorrect PIN</p>
+  </div>
+
+  <div class="container hidden" id="dashboardView">
+    <div class="card">
+      <h1>foodeal Customer Directory</h1>
+      
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
+        <input type="text" id="searchInput" placeholder="Search Name or Phone..." oninput="filterTable()" style="flex: 1; min-width: 200px;">
+        <select id="sortSelect" onchange="loadMembers()">
+          <option value="created_at">Newest First</option>
+          <option value="points_desc">Highest Points</option>
+          <option value="name">Alphabetical</option>
+        </select>
+        <button onclick="loadMembers()">↻ Refresh</button>
+      </div>
+
+      <div style="overflow-x: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Phone</th>
+              <th>Points</th>
+              <th>Tier</th>
+              <th>Joined Date</th>
+            </tr>
+          </thead>
+          <tbody id="memberTableBody">
+            </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const supabaseClient = supabase.createClient('https://biyrentzsvjfhslcneap.supabase.co', 'sb_publishable_1n8pAIefto8v5gzlJHI2DQ_tWGgl5R_');
+    let allMembers = [];
+
+    function checkPin() {
+      const pin = document.getElementById('staffPin').value;
+      if (pin === "2026") { 
+        document.getElementById('loginView').classList.add('hidden');
+        document.getElementById('dashboardView').classList.remove('hidden');
+        loadMembers();
+      } else {
+        document.getElementById('pinError').style.display = "block";
+      }
+    }
+
+    async function loadMembers() {
+      const sortValue = document.getElementById('sortSelect').value;
+      let query = supabaseClient.from('members').select('*');
+
+      if (sortValue === 'created_at') query = query.order('created_at', { ascending: false });
+      if (sortValue === 'points_desc') query = query.order('points', { ascending: false });
+      if (sortValue === 'name') query = query.order('name', { ascending: true });
+
+      const { data, error } = await query;
+      
+      if (error) {
+        alert("Error loading data: " + error.message);
+        return;
+      }
+      
+      allMembers = data;
+      renderTable(allMembers);
+    }
+
+    function renderTable(dataArray) {
+      const tbody = document.getElementById('memberTableBody');
+      tbody.innerHTML = "";
+
+      dataArray.forEach(member => {
+        const dateStr = new Date(member.created_at).toLocaleDateString();
+        
+        // Build the Tier Dropdown
+        const tiers = ['Standard', 'Silver', 'Gold', 'VIP'];
+        // Default to Standard if the tier column is empty
+        const currentTier = member.tier || 'Standard'; 
+        
+        let optionsHtml = tiers.map(t => 
+          `<option value="${t}" ${currentTier === t ? 'selected' : ''}>${t}</option>`
+        ).join('');
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="font-weight: bold;">${member.name || 'N/A'}</td>
+          <td>${member.phone}</td>
+          <td style="color: var(--brand-primary); font-size: 18px; font-weight: bold;">${member.points}</td>
+          <td>
+            <select class="tier-select" onchange="updateTier('${member.id}', this.value)">
+              ${optionsHtml}
+            </select>
+          </td>
+          <td style="color: #888;">${dateStr}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function filterTable() {
+      const term = document.getElementById('searchInput').value.toLowerCase();
+      const filtered = allMembers.filter(m => 
+        (m.name && m.name.toLowerCase().includes(term)) || 
+        (m.phone && m.phone.includes(term))
+      );
+      renderTable(filtered);
+    }
+
+    async function updateTier(userId, newTier) {
+      const { error } = await supabaseClient
+        .from('members')
+        // Updated to use the 'tier' column
+        .update({ tier: newTier }) 
+        .eq('id', userId);
+
+      if (error) {
+        alert("Failed to update tier: " + error.message);
+        loadMembers(); 
+      }
+    }
+  </script>
+</body>
+</html>
