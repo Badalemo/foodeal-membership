@@ -1,170 +1,272 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>foodeal Staff Portal</title>
+  <title>foodeal Loyalty</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
+    /* =========================================
+       FOODEAL BRAND COLORS: Yellow & Black
+       ========================================= */
     :root {
       --brand-primary: #FFD700;
       --brand-hover: #E6C200;
       --bg-color: #000000;
       --card-bg: #141414;
       --text-main: #ffffff;
+      --input-bg: #222222;
       --border-color: #333333;
+      --btn-text: #000000;
     }
 
-    body { font-family: sans-serif; background: var(--bg-color); color: var(--text-main); padding: 20px; margin: 0; }
-    .container { max-width: 1000px; margin: 0 auto; }
-    .card { background: var(--card-bg); padding: 30px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 20px; }
+    body { 
+      font-family: sans-serif; 
+      text-align: center; 
+      background: var(--bg-color); 
+      color: var(--text-main); 
+      padding: 20px; 
+    }
     
-    h1 { color: var(--brand-primary); margin-top: 0; }
+    .card { 
+      background: var(--card-bg); 
+      max-width: 400px; 
+      margin: 40px auto; 
+      padding: 30px; 
+      border-radius: 16px; 
+      border: 1px solid var(--border-color); 
+    }
     
-    input, select { padding: 12px; font-size: 16px; margin-right: 10px; margin-bottom: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: #222; color: white; outline: none; }
-    input:focus, select:focus { border-color: var(--brand-primary); }
+    input[type="tel"], input[type="text"], input[type="email"] { 
+      padding: 15px; 
+      width: 100%; 
+      font-size: 18px; 
+      margin: 10px 0; 
+      border-radius: 8px; 
+      border: 1px solid var(--border-color); 
+      background: var(--input-bg); 
+      color: var(--text-main); 
+      box-sizing: border-box; 
+      outline: none;
+    }
     
-    button { background: var(--brand-primary); color: black; padding: 12px 20px; font-size: 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
-    button:active { background: var(--brand-hover); }
+    input:focus {
+      border-color: var(--brand-primary);
+    }
 
-    /* Table Styles */
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; text-align: left; }
-    th, td { padding: 15px; border-bottom: 1px solid var(--border-color); }
-    th { color: var(--brand-primary); font-weight: bold; }
+    /* Consent Checkbox Styles */
+    .consent-container {
+      display: flex;
+      align-items: flex-start;
+      text-align: left;
+      margin: 15px 0;
+      font-size: 13px;
+      color: #aaa;
+      gap: 10px;
+    }
+
+    .consent-container input[type="checkbox"] {
+      margin-top: 3px;
+      width: 18px;
+      height: 18px;
+      accent-color: var(--brand-primary);
+      cursor: pointer;
+    }
     
-    .tier-select { background: #000; border: 1px solid var(--brand-primary); color: var(--brand-primary); font-weight: bold; cursor: pointer; padding: 8px; border-radius: 4px; }
+    button { 
+      background: var(--brand-primary); 
+      color: var(--btn-text); 
+      padding: 15px; 
+      width: 100%; 
+      font-size: 18px; 
+      border: none; 
+      border-radius: 8px; 
+      cursor: pointer; 
+      font-weight: bold; 
+      transition: transform 0.1s ease, background 0.1s ease; 
+      margin-top: 10px;
+    }
+    
+    button:active { 
+      transform: scale(0.95); 
+      background: var(--brand-hover); 
+    }
+    
+    .brand-text {
+      color: var(--brand-primary);
+    }
     
     .hidden { display: none !important; }
-    
-    #loginView { text-align: center; max-width: 400px; margin: 100px auto; }
+    .error { margin-top: 15px; font-size: 14px; font-weight: bold; }
   </style>
 </head>
 <body>
 
-  <div class="card" id="loginView">
-    <h1>Staff Access</h1>
-    <input type="password" id="staffPin" placeholder="Enter Staff PIN" style="width: 100%;">
-    <button onclick="checkPin()" style="width: 100%;">Unlock Dashboard</button>
-    <p id="pinError" style="color: #ff4444; display: none; margin-top: 10px;">Incorrect PIN</p>
+  <div class="card" id="authView">
+    <h1>Welcome to <span class="brand-text">foodeal</span></h1>
+    
+    <input type="tel" id="phone" placeholder="Phone (e.g. 9025550199)" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+    
+    <div id="newSignupFields" class="hidden">
+       <input type="text" id="name" placeholder="Full Name">
+       <input type="email" id="email" placeholder="Email Address">
+       
+       <label class="consent-container">
+         <input type="checkbox" id="consentBox">
+         <span>I agree to provide my information to join the foodeal loyalty program and consent to receiving account and marketing updates.</span>
+       </label>
+    </div>
+    
+    <button onclick="handleAuth()" id="authBtn">Continue</button>
+    <div id="errorMsg" class="error"></div>
   </div>
 
-  <div class="container hidden" id="dashboardView">
-    <div class="card">
-      <h1>foodeal Customer Directory</h1>
-      
-      <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
-        <input type="text" id="searchInput" placeholder="Search Name or Phone..." oninput="filterTable()" style="flex: 1; min-width: 200px;">
-        <select id="sortSelect" onchange="loadMembers()">
-          <option value="created_at">Newest First</option>
-          <option value="points_desc">Highest Points</option>
-          <option value="name">Alphabetical</option>
-        </select>
-        <button onclick="loadMembers()">↻ Refresh</button>
-      </div>
-
-      <div style="overflow-x: auto;">
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Phone</th>
-              <th>Points</th>
-              <th>Tier</th>
-              <th>Joined Date</th>
-            </tr>
-          </thead>
-          <tbody id="memberTableBody">
-            </tbody>
-        </table>
-      </div>
-    </div>
+  <div class="card hidden" id="statusView">
+    <h2 id="welcomeMsg">Welcome</h2>
+    
+    <div id="rankBadge" style="display: inline-block; background: #333; color: var(--brand-primary); padding: 5px 15px; border-radius: 20px; font-size: 14px; font-weight: bold; text-transform: uppercase; margin-top: -10px;">STANDARD</div>
+    
+    <div style="font-size: 48px; font-weight: bold; margin: 20px 0;" class="brand-text" id="pts">0</div>
+    <p style="color: #aaa;">Loyalty Points</p>
+    <button onclick="location.reload()" style="background: #333; color: white; margin-top: 30px;">Sign Out</button>
   </div>
 
   <script>
     const supabaseClient = supabase.createClient('https://biyrentzsvjfhslcneap.supabase.co', 'sb_publishable_1n8pAIefto8v5gzlJHI2DQ_tWGgl5R_');
-    let allMembers = [];
 
-    function checkPin() {
-      const pin = document.getElementById('staffPin').value;
-      if (pin === "2026") { 
-        document.getElementById('loginView').classList.add('hidden');
-        document.getElementById('dashboardView').classList.remove('hidden');
-        loadMembers();
-      } else {
-        document.getElementById('pinError').style.display = "block";
-      }
-    }
+    let isNewUser = false;
+    let isUpdatingEmail = false;
 
-    async function loadMembers() {
-      const sortValue = document.getElementById('sortSelect').value;
-      let query = supabaseClient.from('members').select('*');
+    async function handleAuth() {
+      const rawPhone = document.getElementById('phone').value.trim();
+      const name = document.getElementById('name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const consentBox = document.getElementById('consentBox').checked;
+      const errorMsg = document.getElementById('errorMsg');
+      const btn = document.getElementById('authBtn');
 
-      if (sortValue === 'created_at') query = query.order('created_at', { ascending: false });
-      if (sortValue === 'points_desc') query = query.order('points', { ascending: false });
-      if (sortValue === 'name') query = query.order('name', { ascending: true });
+      errorMsg.innerText = "";
 
-      const { data, error } = await query;
-      
-      if (error) {
-        alert("Error loading data: " + error.message);
+      if (!rawPhone) {
+        errorMsg.innerText = "❌ Phone number is required.";
+        errorMsg.style.color = "#ff4444";
         return;
       }
-      
-      allMembers = data;
-      renderTable(allMembers);
-    }
 
-    function renderTable(dataArray) {
-      const tbody = document.getElementById('memberTableBody');
-      tbody.innerHTML = "";
+      const phone = rawPhone.replace(/[^0-9]/g, '');
 
-      dataArray.forEach(member => {
-        const dateStr = new Date(member.created_at).toLocaleDateString();
-        
-        // Build the Tier Dropdown
-        const tiers = ['Standard', 'Silver', 'Gold', 'VIP'];
-        // Default to Standard if the tier column is empty
-        const currentTier = member.tier || 'Standard'; 
-        
-        let optionsHtml = tiers.map(t => 
-          `<option value="${t}" ${currentTier === t ? 'selected' : ''}>${t}</option>`
-        ).join('');
-
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td style="font-weight: bold;">${member.name || 'N/A'}</td>
-          <td>${member.phone}</td>
-          <td style="color: var(--brand-primary); font-size: 18px; font-weight: bold;">${member.points}</td>
-          <td>
-            <select class="tier-select" onchange="updateTier('${member.id}', this.value)">
-              ${optionsHtml}
-            </select>
-          </td>
-          <td style="color: #888;">${dateStr}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    function filterTable() {
-      const term = document.getElementById('searchInput').value.toLowerCase();
-      const filtered = allMembers.filter(m => 
-        (m.name && m.name.toLowerCase().includes(term)) || 
-        (m.phone && m.phone.includes(term))
-      );
-      renderTable(filtered);
-    }
-
-    async function updateTier(userId, newTier) {
-      const { error } = await supabaseClient
-        .from('members')
-        // Updated to use the 'tier' column
-        .update({ tier: newTier }) 
-        .eq('id', userId);
-
-      if (error) {
-        alert("Failed to update tier: " + error.message);
-        loadMembers(); 
+      if (phone.length < 10) {
+         errorMsg.innerText = "❌ Phone number must be at least 10 digits.";
+         errorMsg.style.color = "#ff4444";
+         return;
       }
+
+      btn.innerText = "Checking...";
+      btn.disabled = true;
+
+      if (isUpdatingEmail) {
+         if (!email || !email.includes('@')) {
+            errorMsg.innerText = "❌ A valid email is required to continue.";
+            errorMsg.style.color = "#ff4444";
+            btn.innerText = "Save Email";
+            btn.disabled = false;
+            return;
+         }
+         
+         const { data: updatedUser, error: updateError } = await supabaseClient
+            .from('members')
+            .update({ email: email })
+            .eq('phone', phone)
+            .select()
+            .single();
+            
+         if (updateError) {
+            errorMsg.innerText = "❌ Update failed: " + updateError.message;
+            errorMsg.style.color = "#ff4444";
+            btn.innerText = "Save Email";
+            btn.disabled = false;
+            return;
+         }
+         showProfile(updatedUser);
+         return;
+      }
+
+      if (isNewUser) {
+         if (!name || !email || !email.includes('@')) {
+            errorMsg.innerText = "❌ Name and a valid Email are required.";
+            errorMsg.style.color = "#ff4444";
+            btn.innerText = "Complete Sign Up";
+            btn.disabled = false;
+            return;
+         }
+
+         // The Legal Check: Make sure the box is ticked
+         if (!consentBox) {
+            errorMsg.innerText = "❌ You must agree to the terms to join.";
+            errorMsg.style.color = "#ff4444";
+            btn.innerText = "Complete Sign Up";
+            btn.disabled = false;
+            return;
+         }
+
+         const { data: newUser, error: insertError } = await supabaseClient
+            .from('members')
+            .insert([{ phone: phone, name: name, email: email, points: 0 }])
+            .select()
+            .single();
+
+         if (insertError) {
+            errorMsg.innerText = "❌ Registration failed: " + insertError.message;
+            errorMsg.style.color = "#ff4444";
+            btn.innerText = "Complete Sign Up";
+            btn.disabled = false;
+            return;
+         }
+         showProfile(newUser);
+         return;
+      }
+      
+      let { data: user, error: searchError } = await supabaseClient
+        .from('members')
+        .select('*')
+        .eq('phone', phone)
+        .maybeSingle(); 
+
+      if (searchError) {
+         errorMsg.innerText = "Database error: " + searchError.message;
+         errorMsg.style.color = "#ff4444";
+         btn.innerText = "Continue";
+         btn.disabled = false;
+         return;
+      }
+
+      if (user) {
+         if (!user.email) {
+            isUpdatingEmail = true;
+            document.getElementById('email').classList.remove('hidden');
+            btn.innerText = "Save Email";
+            btn.disabled = false;
+            errorMsg.innerText = "Please add an email address to secure your account.";
+            errorMsg.style.color = "var(--brand-primary)";
+            return;
+         }
+         showProfile(user);
+         return;
+      }
+
+      isNewUser = true;
+      document.getElementById('newSignupFields').classList.remove('hidden');
+      btn.innerText = "Complete Sign Up";
+      btn.disabled = false;
+      errorMsg.innerText = "Phone not found. Please register to continue.";
+      errorMsg.style.color = "var(--brand-primary)"; 
+    }
+
+    function showProfile(userData) {
+      document.getElementById('welcomeMsg').innerText = "Hello, " + userData.name;
+      document.getElementById('pts').innerText = userData.points;
+      document.getElementById('rankBadge').innerText = userData.tier || 'STANDARD';
+      document.getElementById('authView').classList.add('hidden');
+      document.getElementById('statusView').classList.remove('hidden');
     }
   </script>
 </body>
