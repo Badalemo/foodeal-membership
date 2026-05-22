@@ -53,9 +53,8 @@
   </div>
 
   <script>
-    const supabase = supabase.createClient('https://biyrentzsvjfhslcneap.supabase.co/rest/v1/', 'sb_publishable_1n8pAIefto8v5gzlJHI2DQ_tWGgl5R_');
+    const supabaseClient = supabase.createClient('https://biyrentzsvjfhslcneap.supabase.co', 'sb_publishable_1n8pAIefto8v5gzlJHI2DQ_tWGgl5R_');
     
-    // Store Location Coordinates (Update to exact store coords)
     const STORE_LAT = 44.6488; 
     const STORE_LON = -63.5752;
     
@@ -64,12 +63,10 @@
     let isVerified = false;
     let html5QrcodeScanner;
 
-    // --- 1. Check if NFC is supported ---
     if (!("NDEFReader" in window)) {
       document.getElementById('nfcButton').classList.add('hidden');
     }
 
-    // --- 2. Start NFC Reader (Android) ---
     async function startNFC() {
       try {
         const ndef = new NDEFReader();
@@ -77,7 +74,6 @@
         document.getElementById('statusText').innerText = "Ready to tap NFC card...";
         
         ndef.addEventListener("reading", ({ message }) => {
-          // Extract text payload from NFC chip
           const textDecoder = new TextDecoder();
           for (const record of message.records) {
             if (record.recordType === "text") {
@@ -92,7 +88,6 @@
       }
     }
 
-    // --- 3. Start Camera Scanner ---
     function startCamera() {
       document.getElementById('reader').classList.remove('hidden');
       document.getElementById('statusText').innerText = "Starting camera...";
@@ -100,11 +95,9 @@
       html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
       html5QrcodeScanner.render(
         (decodedText) => {
-          // When QR is found, stop camera and load member
           html5QrcodeScanner.clear();
           document.getElementById('reader').classList.add('hidden');
           
-          // If the QR is the full URL, extract just the ID. Otherwise, use the raw text.
           let idToUse = decodedText;
           if(decodedText.includes('?id=')) {
             idToUse = decodedText.split('?id=')[1];
@@ -112,17 +105,16 @@
           
           loadMember(idToUse);
         },
-        (errorMessage) => { /* Ignore background scan errors */ }
+        (errorMessage) => { }
       );
     }
 
-    // --- 4. Database Fetch ---
     async function loadMember(id) {
       document.getElementById('statusText').innerText = "Loading...";
       document.getElementById('statusText').style.color = "black";
       document.getElementById('memberProfile').classList.add('hidden');
 
-      const { data, error } = await supabase.from('members').select('*').eq('id', id).single();
+      const { data, error } = await supabaseClient.from('members').select('*').eq('id', id).single();
 
       if (error || !data || !data.is_active) {
         document.getElementById('statusText').innerText = "❌ Invalid or Unactivated Card";
@@ -142,7 +134,6 @@
       if (!isVerified) verifyLocation();
     }
 
-    // --- 5. Location & Passcode Security ---
     function verifyLocation() {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
@@ -170,35 +161,3 @@
     function checkPasscode() {
       if (document.getElementById('passcodeInput').value === 'foodeal1') {
         document.getElementById('passcodeInput').value = '';
-        unlockTerminal();
-      } else {
-        alert("Incorrect passcode");
-      }
-    }
-
-    function unlockTerminal() {
-      isVerified = true;
-      document.getElementById('passcodeArea').classList.add('hidden');
-      document.getElementById('staffActions').classList.remove('hidden');
-    }
-
-    // --- 6. Add Points ---
-    async function addPoints(amount) {
-      const newTotal = currentPoints + amount;
-      const { error } = await supabase.from('members').update({ points: newTotal }).eq('id', currentMemberId);
-
-      if (!error) {
-        currentPoints = newTotal;
-        document.getElementById('mPoints').innerText = currentPoints;
-        const btn = document.querySelector('#staffActions button');
-        btn.innerText = "✅ Points Added!";
-        btn.style.background = "gray";
-        setTimeout(() => {
-          btn.innerText = "🍔 Add Food Order (+10 Points)";
-          btn.style.background = "#28a745";
-        }, 2000);
-      }
-    }
-  </script>
-</body>
-</html>
