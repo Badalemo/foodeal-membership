@@ -1,34 +1,100 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
-  <head>
-    <title>foodeal Membership</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <style>
-      body {
-        font-family: sans-serif;
-        text-align: center;
-        padding: 50px;
-      }
-      #qrcode {
-        display: flex;
-        justify-content: center;
-        margin-top: 20px;
-      }
-    </style>
-  </head>
-  <body>
-    <h1>foodeal Member Card</h1>
-    <div id="qrcode"></div>
-    <script>
-      const urlParams = new URLSearchParams(window.location.search);
-      const memberId =
-        urlParams.get("id") || "123e4567-e89b-12d3-a456-426614174000";
+<head>
+  <title>My foodeal Card</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    body { 
+      font-family: sans-serif; 
+      text-align: center; 
+      background: #121212; 
+      color: white; 
+      padding: 20px; 
+    }
+    .card { 
+      background: linear-gradient(135deg, #1e1e1e, #2a2a2a); 
+      max-width: 350px; 
+      margin: 40px auto; 
+      padding: 30px; 
+      border-radius: 16px; 
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+      border: 1px solid #333; 
+    }
+    .tier { 
+      display: inline-block; 
+      background: #ffd700; 
+      color: black; 
+      padding: 5px 15px; 
+      border-radius: 20px; 
+      font-weight: bold; 
+      font-size: 14px; 
+      margin-bottom: 15px; 
+    }
+    h1 { margin: 0 0 5px 0; font-size: 24px; }
+    .points { font-size: 18px; color: #aaa; margin-bottom: 25px; }
+    #qrcode { 
+      background: white; 
+      padding: 15px; 
+      border-radius: 10px; 
+      display: inline-block; 
+    }
+  </style>
+</head>
+<body>
 
+  <div class="card" id="memberCard" style="display: none;">
+    <div class="tier" id="tierDisplay">Tier</div>
+    <h1 id="nameDisplay">Name</h1>
+    <div class="points" id="pointsDisplay">0 Points</div>
+    
+    <div id="qrcode"></div>
+    <p style="margin-top: 20px; font-size: 14px; color: #777;">Scan at counter</p>
+  </div>
+
+  <div id="errorMsg" style="color: #ff4444; margin-top: 50px; font-weight: bold;"></div>
+
+  <script>
+    const supabase = supabase.createClient('YOUR_SUPABASE_URL', 'YOUR_SUPABASE_ANON_KEY');
+    
+    // Grab the ID from the URL link
+    const cardId = new URLSearchParams(window.location.search).get('id');
+
+    async function loadCard() {
+      if (!cardId) {
+        document.getElementById('errorMsg').innerText = "❌ No Card ID found.";
+        return;
+      }
+
+      // Fetch member data
+      const { data, error } = await supabase
+        .from('members')
+        .select('*')
+        .eq('id', cardId)
+        .single();
+
+      if (error || !data || !data.is_active) {
+        document.getElementById('errorMsg').innerText = "❌ Card not found or not yet activated.";
+        return;
+      }
+
+      // Populate the digital card UI
+      document.getElementById('tierDisplay').innerText = data.tier;
+      document.getElementById('nameDisplay').innerText = data.name;
+      document.getElementById('pointsDisplay').innerText = data.points + " Points";
+      
+      // Generate QR Code containing just the ID for the scanner.html to read
       new QRCode(document.getElementById("qrcode"), {
-        text: memberId,
-        width: 250,
-        height: 250,
+        text: data.id,
+        width: 200,
+        height: 200
       });
-    </script>
-  </body>
+
+      // Show the card
+      document.getElementById('memberCard').style.display = "block";
+    }
+
+    loadCard();
+  </script>
+</body>
 </html>
