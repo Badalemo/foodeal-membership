@@ -9,15 +9,14 @@
        FOODEAL BRAND COLORS: Yellow & Black
        ========================================= */
     :root {
-      --brand-primary: #FFD700; /* Vibrant foodeal Yellow */
-      --brand-hover: #E6C200;   /* Slightly darker yellow for clicks */
-      
-      --bg-color: #000000;      /* Deep Black */
-      --card-bg: #141414;       /* Dark grey/black for the card backdrop */
-      --text-main: #ffffff;     /* White text for general reading */
-      --input-bg: #222222;      /* Input fields */
+      --brand-primary: #FFD700;
+      --brand-hover: #E6C200;
+      --bg-color: #000000;
+      --card-bg: #141414;
+      --text-main: #ffffff;
+      --input-bg: #222222;
       --border-color: #333333;
-      --btn-text: #000000;      /* Black text on the yellow buttons for contrast */
+      --btn-text: #000000;
     }
 
     body { 
@@ -37,7 +36,7 @@
       border: 1px solid var(--border-color); 
     }
     
-    input { 
+    input[type="tel"], input[type="text"], input[type="email"] { 
       padding: 15px; 
       width: 100%; 
       font-size: 18px; 
@@ -79,6 +78,9 @@
     
     .hidden { display: none !important; }
     .error { margin-top: 15px; font-size: 14px; font-weight: bold; }
+    
+    /* Disclaimer Style */
+    .disclaimer { font-size: 12px; color: #888; margin-top: 15px; padding: 0 10px; line-height: 1.4; }
   </style>
 </head>
 <body>
@@ -88,15 +90,25 @@
     
     <input type="tel" id="phone" placeholder="Phone (e.g. 9025550199)" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
     
-    <input type="text" id="name" class="hidden" placeholder="Full Name">
-    <input type="email" id="email" class="hidden" placeholder="Email Address">
+    <div id="newSignupFields" class="hidden">
+       <input type="text" id="name" placeholder="Full Name">
+       <input type="email" id="email" placeholder="Email Address">
+    </div>
     
     <button onclick="handleAuth()" id="authBtn">Continue</button>
+    
+    <p class="disclaimer hidden" id="disclaimerText">
+      By clicking Continue, you agree to join the foodeal loyalty program and consent to receive account and marketing updates.
+    </p>
+    
     <div id="errorMsg" class="error"></div>
   </div>
 
   <div class="card hidden" id="statusView">
     <h2 id="welcomeMsg">Welcome</h2>
+    
+    <div id="rankBadge" style="display: inline-block; background: #333; color: var(--brand-primary); padding: 5px 15px; border-radius: 20px; font-size: 14px; font-weight: bold; text-transform: uppercase; margin-top: -10px;">STANDARD</div>
+    
     <div style="font-size: 48px; font-weight: bold; margin: 20px 0;" class="brand-text" id="pts">0</div>
     <p style="color: #aaa;">Loyalty Points</p>
     <button onclick="location.reload()" style="background: #333; color: white; margin-top: 30px;">Sign Out</button>
@@ -209,6 +221,7 @@
          if (!user.email) {
             isUpdatingEmail = true;
             document.getElementById('email').classList.remove('hidden');
+            document.getElementById('disclaimerText').classList.remove('hidden');
             btn.innerText = "Save Email";
             btn.disabled = false;
             errorMsg.innerText = "Please add an email address to secure your account.";
@@ -221,8 +234,8 @@
 
       // NOT FOUND - PROMPT REGISTRATION
       isNewUser = true;
-      document.getElementById('name').classList.remove('hidden');
-      document.getElementById('email').classList.remove('hidden');
+      document.getElementById('newSignupFields').classList.remove('hidden');
+      document.getElementById('disclaimerText').classList.remove('hidden');
       btn.innerText = "Complete Sign Up";
       btn.disabled = false;
       errorMsg.innerText = "Phone not found. Please register to continue.";
@@ -232,6 +245,7 @@
     function showProfile(userData) {
       document.getElementById('welcomeMsg').innerText = "Hello, " + userData.name;
       document.getElementById('pts').innerText = userData.points;
+      document.getElementById('rankBadge').innerText = userData.tier || 'STANDARD';
       document.getElementById('authView').classList.add('hidden');
       document.getElementById('statusView').classList.remove('hidden');
     }
