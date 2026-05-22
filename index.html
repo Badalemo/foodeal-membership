@@ -1,56 +1,147 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>foodeal Sign In</title>
+  <title>foodeal Loyalty</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { font-family: sans-serif; text-align: center; background: #121212; color: white; padding: 20px; }
     .card { background: #1e1e1e; max-width: 400px; margin: 40px auto; padding: 30px; border-radius: 16px; border: 1px solid #333; }
     input { padding: 15px; width: 100%; font-size: 18px; margin: 10px 0; border-radius: 8px; border: 1px solid #444; background: #2a2a2a; color: white; box-sizing: border-box; }
-    button { background: #4caf50; color: white; padding: 15px; width: 100%; font-size: 18px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
-    .hidden { display: none; }
+    
+    button { 
+      background: #4caf50; 
+      color: white; 
+      padding: 15px; 
+      width: 100%; 
+      font-size: 18px; 
+      border: none; 
+      border-radius: 8px; 
+      cursor: pointer; 
+      font-weight: bold; 
+      transition: transform 0.1s ease, background 0.1s ease; 
+      margin-top: 10px;
+    }
+    
+    /* The Click/Tap Animation */
+    button:active { 
+      transform: scale(0.95); 
+      background: #388e3c; 
+    }
+    
+    .hidden { display: none !important; }
+    .error { margin-top: 15px; font-size: 14px; font-weight: bold; }
   </style>
 </head>
 <body>
 
   <div class="card" id="authView">
     <h1>Welcome to foodeal</h1>
+    
     <input type="tel" id="phone" placeholder="Phone (e.g. 9025550199)">
-    <input type="text" id="name" placeholder="Full Name (for new signups)">
-    <button onclick="handleLogin()">Sign In / Sign Up</button>
+    
+    <div id="newSignupFields" class="hidden">
+       <input type="text" id="name" placeholder="Full Name (To complete registration)">
+    </div>
+    
+    <button onclick="handleAuth()" id="authBtn">Continue</button>
+    <div id="errorMsg" class="error"></div>
   </div>
 
   <div class="card hidden" id="statusView">
     <h2 id="welcomeMsg">Welcome</h2>
-    <div style="font-size: 40px;" id="pts">0</div>
-    <p>Loyalty Points</p>
+    <div style="font-size: 48px; color: #4caf50; font-weight: bold; margin: 20px 0;" id="pts">0</div>
+    <p style="color: #aaa;">Loyalty Points</p>
+    <button onclick="location.reload()" style="background: #444; margin-top: 30px;">Sign Out</button>
   </div>
 
   <script>
-    const supabase = supabase.createClient('https://biyrentzsvjfhslcneap.supabase.co', 'sb_publishable_1n8pAIefto8v5gzlJHI2DQ_tWGgl5R_');
+    const supabaseClient = supabase.createClient('https://biyrentzsvjfhslcneap.supabase.co', 'sb_publishable_1n8pAIefto8v5gzlJHI2DQ_tWGgl5R_');
 
-    async function handleLogin() {
-      const phone = document.getElementById('phone').value;
-      const name = document.getElementById('name').value;
+    let isNewUser = false;
+
+    async function handleAuth() {
+      const phone = document.getElementById('phone').value.trim();
+      const name = document.getElementById('name').value.trim();
+      const errorMsg = document.getElementById('errorMsg');
+      const btn = document.getElementById('authBtn');
+
+      errorMsg.innerText = "";
+
+      // 1. Validate Phone is entered
+      if (!phone) {
+        errorMsg.innerText = "❌ Phone number is required.";
+        errorMsg.style.color = "#ff4444";
+        return;
+      }
+
+      btn.innerText = "Checking...";
+      btn.disabled = true;
       
-      let { data: user, error } = await supabase
+      // 2. Search Database for Phone Number
+      let { data: user, error: searchError } = await supabaseClient
         .from('members')
         .select('*')
         .eq('phone', phone)
-        .single();
+        .maybeSingle(); 
 
-      if (!user) {
-        const { data: newUser, error: signupError } = await supabase
-          .from('members')
-          .insert([{ phone, name, points: 0 }])
-          .select()
-          .single();
-        user = newUser;
+      if (searchError) {
+         errorMsg.innerText = "Database error: " + searchError.message;
+         errorMsg.style.color = "#ff4444";
+         btn.innerText = "Continue";
+         btn.disabled = false;
+         return;
       }
 
-      document.getElementById('welcomeMsg').innerText = "Hello, " + user.name;
-      document.getElementById('pts').innerText = user.points;
+      // 3. RETURNING USER: Log in instantly
+      if (user) {
+         showProfile(user);
+         return;
+      }
+
+      // 4. NEW USER: Reveal Name Field
+      if (!isNewUser) {
+         isNewUser = true;
+         document.getElementById('newSignupFields').classList.remove('hidden');
+         btn.innerText = "Complete Sign Up";
+         btn.disabled = false;
+         errorMsg.innerText = "Phone not found. Please enter your name to register.";
+         errorMsg.style.color = "#ffd700"; 
+         return;
+      }
+
+      // 5. NEW USER: Finalize Registration
+      if (!name) {
+         errorMsg.innerText = "❌ Name is required to create a new account.";
+         errorMsg.style.color = "#ff4444";
+         btn.innerText = "Complete Sign Up";
+         btn.disabled = false;
+         return;
+      }
+
+      // Write new user to database (PIN column is ignored)
+      const { data: newUser, error: insertError } = await supabaseClient
+        .from('members')
+        .insert([{ phone: phone, name: name, points: 0 }])
+        .select()
+        .single();
+
+      if (insertError) {
+         errorMsg.innerText = "❌ Registration failed: " + insertError.message;
+         errorMsg.style.color = "#ff4444";
+         btn.innerText = "Complete Sign Up";
+         btn.disabled = false;
+         return;
+      }
+
+      // Registration Success
+      showProfile(newUser);
+    }
+
+    // Switches the screen from the Login Form to the Points Dashboard
+    function showProfile(userData) {
+      document.getElementById('welcomeMsg').innerText = "Hello, " + userData.name;
+      document.getElementById('pts').innerText = userData.points;
       document.getElementById('authView').classList.add('hidden');
       document.getElementById('statusView').classList.remove('hidden');
     }
