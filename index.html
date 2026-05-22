@@ -5,13 +5,58 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    body { font-family: sans-serif; text-align: center; background: #121212; color: white; padding: 20px; }
-    .card { background: #1e1e1e; max-width: 400px; margin: 40px auto; padding: 30px; border-radius: 16px; border: 1px solid #333; }
-    input { padding: 15px; width: 100%; font-size: 18px; margin: 10px 0; border-radius: 8px; border: 1px solid #444; background: #2a2a2a; color: white; box-sizing: border-box; }
+    /* =========================================
+       FOODEAL BRAND COLORS: Yellow & Black
+       ========================================= */
+    :root {
+      --brand-primary: #FFD700; /* Vibrant foodeal Yellow */
+      --brand-hover: #E6C200;   /* Slightly darker yellow for clicks */
+      
+      --bg-color: #000000;      /* Deep Black */
+      --card-bg: #141414;       /* Dark grey/black for the card backdrop */
+      --text-main: #ffffff;     /* White text for general reading */
+      --input-bg: #222222;      /* Input fields */
+      --border-color: #333333;
+      --btn-text: #000000;      /* Black text on the yellow buttons for contrast */
+    }
+
+    body { 
+      font-family: sans-serif; 
+      text-align: center; 
+      background: var(--bg-color); 
+      color: var(--text-main); 
+      padding: 20px; 
+    }
+    
+    .card { 
+      background: var(--card-bg); 
+      max-width: 400px; 
+      margin: 40px auto; 
+      padding: 30px; 
+      border-radius: 16px; 
+      border: 1px solid var(--border-color); 
+    }
+    
+    input { 
+      padding: 15px; 
+      width: 100%; 
+      font-size: 18px; 
+      margin: 10px 0; 
+      border-radius: 8px; 
+      border: 1px solid var(--border-color); 
+      background: var(--input-bg); 
+      color: var(--text-main); 
+      box-sizing: border-box; 
+      outline: none;
+    }
+    
+    input:focus {
+      border-color: var(--brand-primary);
+    }
     
     button { 
-      background: #4caf50; 
-      color: white; 
+      background: var(--brand-primary); 
+      color: var(--btn-text); 
       padding: 15px; 
       width: 100%; 
       font-size: 18px; 
@@ -25,7 +70,11 @@
     
     button:active { 
       transform: scale(0.95); 
-      background: #388e3c; 
+      background: var(--brand-hover); 
+    }
+    
+    .brand-text {
+      color: var(--brand-primary);
     }
     
     .hidden { display: none !important; }
@@ -35,7 +84,7 @@
 <body>
 
   <div class="card" id="authView">
-    <h1>Welcome to foodeal</h1>
+    <h1>Welcome to <span class="brand-text">foodeal</span></h1>
     
     <input type="tel" id="phone" placeholder="Phone (e.g. 9025550199)" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
     
@@ -48,9 +97,9 @@
 
   <div class="card hidden" id="statusView">
     <h2 id="welcomeMsg">Welcome</h2>
-    <div style="font-size: 48px; color: #4caf50; font-weight: bold; margin: 20px 0;" id="pts">0</div>
+    <div style="font-size: 48px; font-weight: bold; margin: 20px 0;" class="brand-text" id="pts">0</div>
     <p style="color: #aaa;">Loyalty Points</p>
-    <button onclick="location.reload()" style="background: #444; margin-top: 30px;">Sign Out</button>
+    <button onclick="location.reload()" style="background: #333; color: white; margin-top: 30px;">Sign Out</button>
   </div>
 
   <script>
@@ -85,6 +134,7 @@
       btn.innerText = "Checking...";
       btn.disabled = true;
 
+      // UPDATE EMAIL STATE
       if (isUpdatingEmail) {
          if (!email || !email.includes('@')) {
             errorMsg.innerText = "❌ A valid email is required to continue.";
@@ -112,6 +162,7 @@
          return;
       }
 
+      // NEW REGISTRATION STATE
       if (isNewUser) {
          if (!name || !email || !email.includes('@')) {
             errorMsg.innerText = "❌ Name and a valid Email are required.";
@@ -138,6 +189,7 @@
          return;
       }
       
+      // SEARCH DB
       let { data: user, error: searchError } = await supabaseClient
         .from('members')
         .select('*')
@@ -152,6 +204,7 @@
          return;
       }
 
+      // FOUND USER
       if (user) {
          if (!user.email) {
             isUpdatingEmail = true;
@@ -159,20 +212,21 @@
             btn.innerText = "Save Email";
             btn.disabled = false;
             errorMsg.innerText = "Please add an email address to secure your account.";
-            errorMsg.style.color = "#ffd700";
+            errorMsg.style.color = "var(--brand-primary)";
             return;
          }
          showProfile(user);
          return;
       }
 
+      // NOT FOUND - PROMPT REGISTRATION
       isNewUser = true;
       document.getElementById('name').classList.remove('hidden');
       document.getElementById('email').classList.remove('hidden');
       btn.innerText = "Complete Sign Up";
       btn.disabled = false;
       errorMsg.innerText = "Phone not found. Please register to continue.";
-      errorMsg.style.color = "#ffd700"; 
+      errorMsg.style.color = "var(--brand-primary)"; 
     }
 
     function showProfile(userData) {
