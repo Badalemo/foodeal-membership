@@ -16,10 +16,9 @@
       border: none; 
       border-radius: 6px; 
       cursor: pointer; 
-      transition: transform 0.1s ease, background 0.1s ease; /* Adds smooth motion */
+      transition: transform 0.1s ease, background 0.1s ease;
     }
     
-    /* This creates the visual click/tap animation */
     button:active {
       transform: scale(0.95);
       background: #333;
@@ -37,8 +36,7 @@
   </div>
 
   <script>
-    // FIXED: Renamed to supabaseClient to prevent variable crashing
-    const supabaseClient = supabase.createClient('https://biyrentzsvjfhslcneap.supabase.co/rest/v1/', 'sb_publishable_1n8pAIefto8v5gzlJHI2DQ_tWGgl5R_');
+    const supabaseClient = supabase.createClient('https://biyrentzsvjfhslcneap.supabase.co', 'sb_publishable_1n8pAIefto8v5gzlJHI2DQ_tWGgl5R_');
     const cardId = new URLSearchParams(window.location.search).get('id');
 
     async function activate() {
@@ -49,18 +47,3 @@
       document.getElementById('status').style.color = "black";
       
       const { error } = await supabaseClient
-        .from('members')
-        .update({ name: name, is_active: true })
-        .eq('id', cardId);
-
-      if (error) {
-        document.getElementById('status').innerText = "❌ Error: " + error.message;
-        document.getElementById('status').style.color = "red";
-      } else {
-        document.getElementById('status').innerText = "✅ Card Activated! You can close this page.";
-        document.getElementById('status').style.color = "green";
-      }
-    }
-  </script>
-</body>
-</html>
