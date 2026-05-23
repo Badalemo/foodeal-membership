@@ -26,8 +26,10 @@
     button { background: var(--brand-primary); color: black; padding: 12px 20px; font-size: 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
     button:active { background: var(--brand-hover); }
     
-    .btn-danger { background: #ff4444; color: white; padding: 8px 12px; font-size: 14px; }
+    .btn-danger { background: #ff4444; color: white; padding: 8px 12px; font-size: 14px; margin-top: 5px; width: 100%;}
     .btn-danger:active { background: #cc0000; }
+    .btn-warning { background: #ff9800; color: black; padding: 8px 12px; font-size: 14px; width: 100%;}
+    .btn-warning:active { background: #e68a00; }
     .btn-success { background: #4caf50; color: white; }
     .btn-success:active { background: #388e3c; }
     .btn-secondary { background: #444; color: white; }
@@ -35,10 +37,13 @@
 
     /* Table Styles */
     table { width: 100%; border-collapse: collapse; margin-top: 20px; text-align: left; }
-    th, td { padding: 15px; border-bottom: 1px solid var(--border-color); }
+    th, td { padding: 15px; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
     th { color: var(--brand-primary); font-weight: bold; }
     
     .tier-select { background: #000; border: 1px solid var(--brand-primary); color: var(--brand-primary); font-weight: bold; cursor: pointer; padding: 8px; border-radius: 4px; }
+    
+    .banned-row { background-color: rgba(255, 0, 0, 0.1); opacity: 0.7; }
+    .badge-banned { background: #ff4444; color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; vertical-align: middle; margin-left: 8px; font-weight: bold;}
     
     .hidden { display: none !important; }
     
@@ -128,7 +133,6 @@
     const supabaseClient = supabase.createClient('https://biyrentzsvjfhslcneap.supabase.co', 'sb_publishable_1n8pAIefto8v5gzlJHI2DQ_tWGgl5R_');
     let allMembers = [];
 
-    // --- SECURITY & LOAD ---
     function checkPin() {
       const pin = document.getElementById('staffPin').value;
       if (pin === "2026") { 
@@ -151,15 +155,13 @@
       const { data, error } = await query;
       
       if (error) {
-        alert("Error loading data: " + error.message);
-        return;
+        alert("Error loading data: " + error.message); return;
       }
       
       allMembers = data;
       renderTable(allMembers);
     }
 
-    // --- RENDER & FILTER ---
     function renderTable(dataArray) {
       const tbody = document.getElementById('memberTableBody');
       tbody.innerHTML = "";
@@ -174,17 +176,28 @@
         ).join('');
 
         const tr = document.createElement('tr');
+        // Add special styling if the user is banned
+        if (member.is_banned) { tr.classList.add('banned-row'); }
+
+        const nameDisplay = member.name || 'N/A';
+        const bannedBadge = member.is_banned ? `<span class="badge-banned">BANNED</span>` : '';
+        
+        // Toggle text for Ban/Unban button
+        const banBtnText = member.is_banned ? 'Unban' : 'Ban';
+        const banBtnClass = member.is_banned ? 'btn-secondary' : 'btn-warning';
+
         tr.innerHTML = `
-          <td style="font-weight: bold;">${member.name || 'N/A'}</td>
+          <td style="font-weight: bold;">${nameDisplay} ${bannedBadge}</td>
           <td>${member.phone}</td>
           <td style="color: var(--brand-primary); font-size: 18px; font-weight: bold;">${member.points}</td>
           <td>
-            <select class="tier-select" onchange="updateTier('${member.id}', this.value)">
+            <select class="tier-select" onchange="updateTier('${member.id}', this.value)" ${member.is_banned ? 'disabled' : ''}>
               ${optionsHtml}
             </select>
           </td>
           <td style="color: #888;">${dateStr}</td>
-          <td>
+          <td style="min-width: 100px;">
+            <button onclick="toggleBan('${member.id}', ${member.is_banned})" class="${banBtnClass}">${banBtnText}</button>
             <button onclick="deleteMember('${member.id}', '${member.name}')" class="btn-danger">Delete</button>
           </td>
         `;
@@ -201,50 +214,45 @@
       renderTable(filtered);
     }
 
-    // --- DATABASE ACTIONS ---
     async function updateTier(userId, newTier) {
-      const { error } = await supabaseClient
-        .from('members')
-        .update({ tier: newTier }) 
-        .eq('id', userId);
-
-      if (error) {
-        alert("Failed to update tier: " + error.message);
-        loadMembers(); 
-      }
+      const { error } = await supabaseClient.from('members').update({ tier: newTier }).eq('id', userId);
+      if (error) { alert("Failed to update tier: " + error.message); loadMembers(); }
     }
 
-    async function deleteMember(userId, userName) {
-      // Ask for confirmation before deleting
-      const isConfirmed = confirm(`Are you sure you want to permanently delete ${userName || 'this user'}? This action cannot be undone.`);
+    // --- BAN LOGIC ---
+    async function toggleBan(userId, currentStatus) {
+      const newStatus = !currentStatus; // Flip it (if banned, unban. If unbanned, ban).
+      const actionText = newStatus ? "Ban" : "Unban";
       
+      const isConfirmed = confirm(`Are you sure you want to ${actionText} this user?`);
       if (isConfirmed) {
         const { error } = await supabaseClient
           .from('members')
-          .delete()
+          .update({ is_banned: newStatus })
           .eq('id', userId);
 
         if (error) {
-          alert("Failed to delete member: " + error.message);
+          alert(`Failed to ${actionText}: ` + error.message);
         } else {
-          loadMembers(); // Refresh table
+          loadMembers(); // Refresh table to show red highlighting
         }
       }
     }
 
-    // --- ADD MEMBER MODAL LOGIC ---
-    function openAddModal() {
-      document.getElementById('addModal').classList.remove('hidden');
-      document.getElementById('addError').innerText = "";
+    async function deleteMember(userId, userName) {
+      const isConfirmed = confirm(`Are you sure you want to permanently delete ${userName || 'this user'}? This action cannot be undone.`);
+      if (isConfirmed) {
+        const { error } = await supabaseClient.from('members').delete().eq('id', userId);
+        if (error) { alert("Failed to delete member: " + error.message); } else { loadMembers(); }
+      }
     }
 
+    function openAddModal() {
+      document.getElementById('addModal').classList.remove('hidden'); document.getElementById('addError').innerText = "";
+    }
     function closeAddModal() {
       document.getElementById('addModal').classList.add('hidden');
-      // Clear inputs when closing
-      document.getElementById('newName').value = "";
-      document.getElementById('newPhone').value = "";
-      document.getElementById('newEmail').value = "";
-      document.getElementById('newTier').value = "Standard";
+      document.getElementById('newName').value = ""; document.getElementById('newPhone').value = ""; document.getElementById('newEmail').value = ""; document.getElementById('newTier').value = "Standard";
     }
 
     async function saveNewMember() {
@@ -255,35 +263,14 @@
       const errorText = document.getElementById('addError');
 
       errorText.innerText = "";
+      if (!phone || phone.length < 10) { errorText.innerText = "A valid phone number is required."; return; }
+      if (!name) { errorText.innerText = "Name is required."; return; }
 
-      // Basic Validation
-      if (!phone || phone.length < 10) {
-        errorText.innerText = "A valid phone number (at least 10 digits) is required.";
-        return;
-      }
-      if (!name) {
-        errorText.innerText = "Name is required.";
-        return;
-      }
-
-      // Check if phone already exists
       const { data: existing } = await supabaseClient.from('members').select('id').eq('phone', phone).maybeSingle();
-      if (existing) {
-        errorText.innerText = "A member with this phone number already exists.";
-        return;
-      }
+      if (existing) { errorText.innerText = "A member with this phone number already exists."; return; }
 
-      // Insert new member
-      const { error } = await supabaseClient
-        .from('members')
-        .insert([{ phone: phone, name: name, email: email, tier: tier, points: 0 }]);
-
-      if (error) {
-        errorText.innerText = "Error saving member: " + error.message;
-      } else {
-        closeAddModal();
-        loadMembers(); // Refresh the table so they appear instantly
-      }
+      const { error } = await supabaseClient.from('members').insert([{ phone: phone, name: name, email: email, tier: tier, points: 0, is_banned: false }]);
+      if (error) { errorText.innerText = "Error saving member: " + error.message; } else { closeAddModal(); loadMembers(); }
     }
   </script>
 </body>
