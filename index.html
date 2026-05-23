@@ -146,7 +146,7 @@
       btn.innerText = "Checking...";
       btn.disabled = true;
 
-      // UPDATE EMAIL STATE
+      // --- STATE: RETURNING USER UPDATING EMAIL ---
       if (isUpdatingEmail) {
          if (!email || !email.includes('@')) {
             errorMsg.innerText = "❌ A valid email is required to continue.";
@@ -174,7 +174,7 @@
          return;
       }
 
-      // NEW REGISTRATION STATE
+      // --- STATE: NEW USER FINISHING REGISTRATION ---
       if (isNewUser) {
          if (!name || !email || !email.includes('@')) {
             errorMsg.innerText = "❌ Name and a valid Email are required.";
@@ -186,7 +186,7 @@
 
          const { data: newUser, error: insertError } = await supabaseClient
             .from('members')
-            .insert([{ phone: phone, name: name, email: email, points: 0 }])
+            .insert([{ phone: phone, name: name, email: email, points: 0, is_banned: false }])
             .select()
             .single();
 
@@ -201,7 +201,7 @@
          return;
       }
       
-      // SEARCH DB
+      // --- INITIAL SEARCH: WHO IS THIS USER? ---
       let { data: user, error: searchError } = await supabaseClient
         .from('members')
         .select('*')
@@ -218,6 +218,16 @@
 
       // FOUND USER
       if (user) {
+         // Check if the user is on the blacklist
+         if (user.is_banned) {
+             errorMsg.innerText = "❌ This account has been suspended. Please contact staff."; 
+             errorMsg.style.color = "#ff4444";
+             btn.innerText = "Continue"; 
+             btn.disabled = false; 
+             return; 
+         }
+
+         // Check if they are missing their email
          if (!user.email) {
             isUpdatingEmail = true;
             document.getElementById('email').classList.remove('hidden');
@@ -228,6 +238,8 @@
             errorMsg.style.color = "var(--brand-primary)";
             return;
          }
+         
+         // Has everything and is not banned, log them in instantly
          showProfile(user);
          return;
       }
